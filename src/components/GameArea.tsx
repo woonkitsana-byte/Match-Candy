@@ -18,11 +18,13 @@ import {
   Flame,
   Award,
   ChevronLeft,
-  X
+  X,
+  Gift
 } from 'lucide-react';
 import { DessertItem, LevelConfig, PlateConfig, UserProgress, DessertType } from '../types';
 import DessertRenderer from './DessertRenderer';
 import { audio } from '../utils/audio';
+import RewardedAdModal from './RewardedAdModal';
 
 interface GameAreaProps {
   progress: UserProgress;
@@ -32,43 +34,57 @@ interface GameAreaProps {
   plateStyleBg: string;
 }
 
-// Generate configuration for a given level
+// Generate configuration for a given level (Endless procedural generation!)
 const getLevelConfig = (lvl: number): LevelConfig => {
-  let theme: 'macaron_cafe' | 'candy_factory' | 'thai_festival' | 'buffet_wonderland' = 'macaron_cafe';
-  let themeName = 'คาเฟ่มาการอง';
-  let difficulty: 'Easy' | 'Medium' | 'Hard' | 'Wonderland' = 'Easy';
-  let colors = ['#ef4444', '#f59e0b', '#3b82f6']; // Red, Yellow, Blue
-  let speedMultiplier = 1.0 + (lvl - 1) * 0.05;
-  let spawnIntervalMs = Math.max(1800, 3200 - lvl * 100);
-  let targetCount = 10 + Math.floor(lvl / 2);
-  let isDualColor = false;
-  let isMystery = false;
+  const themes: Array<'macaron_cafe' | 'candy_factory' | 'thai_festival' | 'buffet_wonderland'> = [
+    'macaron_cafe', 'candy_factory', 'thai_festival', 'buffet_wonderland'
+  ];
+  const themeNames = ['คาเฟ่มาการอง', 'โรงงานลูกกวาด', 'เทศกาลขนมไทย', 'แดนมหัศจรรย์บุฟเฟต์'];
+  
+  const themeIndex = (lvl - 1) % 4;
+  const theme = themes[themeIndex];
+  const themeName = themeNames[themeIndex];
+  
+  // Dynamic descriptive difficulties
+  let difficulty = 'Easy';
+  if (lvl > 100) difficulty = '🌌 Legend Master 🌌';
+  else if (lvl > 70) difficulty = '🏆 Grandmaster';
+  else if (lvl > 45) difficulty = '👑 Culinary Master';
+  else if (lvl > 25) difficulty = '✨ Expert Matcher';
+  else if (lvl > 12) difficulty = '⚡ Hard';
+  else if (lvl > 5) difficulty = '🍰 Medium';
 
-  if (lvl > 60) {
-    theme = 'buffet_wonderland';
-    themeName = 'แดนมหัศจรรย์บุฟเฟต์';
-    difficulty = 'Wonderland';
-    colors = ['#059669', '#d97706', '#dc2626', '#2563eb']; // Emerald, Amber, Ruby, Sapphire
-    isMystery = true;
-    spawnIntervalMs = Math.max(1500, 2400 - (lvl - 60) * 80);
-    speedMultiplier = 1.6 + (lvl - 60) * 0.04;
-  } else if (lvl > 30) {
-    theme = 'thai_festival';
-    themeName = 'เทศกาลขนมไทย';
-    difficulty = 'Hard';
-    colors = ['#fbbf24', '#10b981', '#fcf8f2', '#fb7185']; // Gold, Pandan Green, Coconut White, Pink Rose
-    isDualColor = true;
-    spawnIntervalMs = Math.max(1600, 2600 - (lvl - 30) * 90);
-    speedMultiplier = 1.3 + (lvl - 30) * 0.03;
-  } else if (lvl > 10) {
-    theme = 'candy_factory';
-    themeName = 'โรงงานลูกกวาด';
-    difficulty = 'Medium';
-    // Pastel colors that look quite similar (pink vs salmon, purple vs light blue)
-    colors = ['#fbcfe8', '#fda4af', '#e9d5ff', '#bfdbfe']; 
-    spawnIntervalMs = Math.max(1800, 2800 - (lvl - 10) * 100);
-    speedMultiplier = 1.15 + (lvl - 10) * 0.03;
-  }
+  // Base palette configurations
+  const macaronColors = ['#ef4444', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6', '#10b981'];
+  const candyColors = ['#fbcfe8', '#fda4af', '#e9d5ff', '#bfdbfe', '#fca5a5', '#fed7aa'];
+  const thaiColors = ['#fbbf24', '#10b981', '#fcf8f2', '#fb7185', '#a7f3d0', '#fef08a'];
+  const buffetColors = ['#059669', '#d97706', '#dc2626', '#2563eb', '#8b5cf6', '#db2777'];
+  
+  let baseColors = macaronColors;
+  if (theme === 'candy_factory') baseColors = candyColors;
+  else if (theme === 'thai_festival') baseColors = thaiColors;
+  else if (theme === 'buffet_wonderland') baseColors = buffetColors;
+
+  // Number of plate choices scales by level
+  // lvl 1-4: 3 colors | lvl 5-11: 4 colors | lvl 12-40: 5 colors | lvl 41+: 6 colors!
+  const colorCount = lvl < 5 ? 3 : (lvl < 12 ? 4 : (lvl < 41 ? 5 : 6));
+  const colors = baseColors.slice(0, colorCount);
+
+  // Speed multiplier scales up smoothly but keeps challenging!
+  // At level 1: 1.0x, Level 30: 1.7x, Level 100: 2.3x
+  const speedMultiplier = 1.0 + Math.min(1.5, Math.log2(lvl) * 0.22);
+
+  // Spawning speed interval (gets much more intense and rapid!)
+  // Max speed spawning is 900ms for a heavy arcade rush!
+  const spawnIntervalMs = Math.max(900, 3100 - (lvl * 60));
+
+  // Goal requirement
+  const targetCount = 10 + Math.min(35, Math.floor(lvl * 0.5));
+
+  // Game rules
+  // Dual color logic applies to alternate levels or past certain thresholds
+  const isDualColor = lvl > 6 && (lvl % 2 === 0 || lvl > 20);
+  const isMystery = lvl > 12 && (lvl % 3 === 0 || lvl > 35);
 
   return {
     levelNumber: lvl,
@@ -133,6 +149,8 @@ export default function GameArea({
   const [isVictory, setIsVictory] = useState(false);
   const [earnedCandies, setEarnedCandies] = useState(0);
   const [earnedStars, setEarnedStars] = useState(0);
+  const [hasRevived, setHasRevived] = useState(false);
+  const [isAdOpen, setIsAdOpen] = useState(false);
 
   // UI Effects
   const [muted, setMuted] = useState(audio.getMuteState());
@@ -250,21 +268,37 @@ export default function GameArea({
     setSelectedDessertId(null);
     setIsGameOver(false);
     setIsVictory(false);
+    setHasRevived(false);
     setIsPlaying(true);
     showQuote('มาเริ่มปั้นความน่ารักใส่ถ้วยกันเถอะ! 🥰', true);
   };
 
+  const handleAdReviveComplete = () => {
+    setMissedCount(0);
+    setIsGameOver(false);
+    setHasRevived(true);
+    setIsAdOpen(false);
+    setIsPlaying(true);
+    audio.playSuccess();
+    showQuote('💖 ชุบชีวิตสำเร็จ! สู้ต่อนะเชฟคนเก่ง 🧁✨', true);
+  };
+
+  // Fever mode triggers when combo reaches 5 or more!
+  const isFever = combo >= 5;
+  const currentSpawnInterval = isFever ? Math.max(650, levelConfig.spawnIntervalMs * 0.7) : levelConfig.spawnIntervalMs;
+
   // Spawn Trigger loop
   useEffect(() => {
     if (isPlaying && !isGameOver && !isVictory) {
-      spawnTimerRef.current = setInterval(spawnDessert, levelConfig.spawnIntervalMs);
+      if (spawnTimerRef.current) clearInterval(spawnTimerRef.current);
+      spawnTimerRef.current = setInterval(spawnDessert, currentSpawnInterval);
     } else {
       if (spawnTimerRef.current) clearInterval(spawnTimerRef.current);
     }
     return () => {
       if (spawnTimerRef.current) clearInterval(spawnTimerRef.current);
     };
-  }, [isPlaying, isGameOver, isVictory, progress.currentLevel]);
+  }, [isPlaying, isGameOver, isVictory, progress.currentLevel, currentSpawnInterval]);
 
   // Main conveyor belt motion animation loop
   useEffect(() => {
@@ -617,8 +651,12 @@ export default function GameArea({
           </div>
         )}
 
-        {/* 1. Conveyor Belt Container (Zone ขนมหลากสี) */}
-        <div className="relative w-full h-32 bg-amber-100/40 border-y border-amber-900/10 rounded-xl flex items-center overflow-hidden">
+        {/* 1. Conveyor Belt Container (Zone ขนมหลากสี) with Fever styling */}
+        <div className={`relative w-full h-32 border-y rounded-xl flex items-center overflow-hidden transition-all duration-300 ${
+          isFever 
+            ? 'bg-gradient-to-r from-amber-100 via-yellow-100 to-orange-100 border-orange-400 ring-4 ring-orange-400/30 shadow-lg' 
+            : 'bg-amber-100/40 border-amber-900/10'
+        }`}>
           
           {/* Conveyor Background lines to simulate motion */}
           <div 
@@ -629,11 +667,20 @@ export default function GameArea({
             }} 
           />
 
+          {/* Fever Overlay glow */}
+          {isFever && (
+            <div className="absolute inset-x-0 bottom-0 top-0 bg-gradient-to-r from-orange-500/10 via-yellow-400/15 to-orange-500/10 animate-pulse pointer-events-none z-0" />
+          )}
+
           {/* Active Highlight matching rhythm box (Center of conveyor) */}
           {isPlaying && (
-            <div className="absolute left-[42%] right-[42%] top-1 bottom-1 border-2 border-dashed border-pink-400 rounded-2xl bg-pink-100/15 flex items-center justify-center z-10">
-              <div className="text-[10px] text-pink-500 font-extrabold uppercase animate-pulse">
-                ช่องจับคู่
+            <div className={`absolute left-[42%] right-[42%] top-1 bottom-1 border-2 border-dashed rounded-2xl flex items-center justify-center z-10 transition-colors ${
+              isFever ? 'border-orange-500 bg-orange-100/30' : 'border-pink-400 bg-pink-100/15'
+            }`}>
+              <div className={`text-[10px] font-black uppercase animate-pulse flex flex-col items-center ${
+                isFever ? 'text-orange-600' : 'text-pink-500'
+              }`}>
+                <span>{isFever ? '🔥 FEVER 🔥' : 'ช่องจับคู่'}</span>
               </div>
             </div>
           )}
@@ -747,9 +794,22 @@ export default function GameArea({
               <h2 className="text-xl md:text-2xl font-black text-amber-900">
                 โอ๊ะโอ๋! ขนมเริ่มล้นเตาแล้ว 🍰
               </h2>
-              <p className="text-xs text-amber-800/80 mt-2 mb-6 leading-relaxed">
+              <p className="text-xs text-amber-800/80 mt-2 mb-4 leading-relaxed">
                 "ไม่เป็นไรนะ เติมพลังใจ พักดัดแปลงสายตาสักครู่ แล้วกลับมาลุยกับขนมแสนอร่อยใหม่!"
               </p>
+
+              {!hasRevived && (
+                <button
+                  onClick={() => {
+                    audio.playTap();
+                    setIsAdOpen(true);
+                  }}
+                  className="w-full mb-3.5 py-3 rounded-full bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 hover:brightness-105 text-white font-extrabold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer text-xs animate-pulse ring-4 ring-purple-400/20"
+                >
+                  <Heart className="w-4 h-4 fill-white animate-bounce" />
+                  <span>ดูโฆษณา ชุบชีวิตฟรีทันที! ❤️ (ได้ 1 ครั้ง/รอบ)</span>
+                </button>
+              )}
               
               <div className="flex gap-3 w-full">
                 <button
@@ -918,6 +978,14 @@ export default function GameArea({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Rewarded Ad modal component for Revival */}
+      <RewardedAdModal
+        isOpen={isAdOpen}
+        rewardType="revive"
+        onComplete={handleAdReviveComplete}
+        onClose={() => setIsAdOpen(false)}
+      />
     </motion.div>
   );
 }

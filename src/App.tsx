@@ -20,7 +20,8 @@ import {
   Coffee,
   Candy,
   HelpCircle,
-  Coins
+  Coins,
+  Gift
 } from 'lucide-react';
 import { UserProgress, DessertType } from './types';
 import BackgroundTheme from './components/BackgroundTheme';
@@ -29,6 +30,7 @@ import CustomizeShop, { SHOP_THEMES, PLATE_STYLES } from './components/Customize
 import GameArea from './components/GameArea';
 import DessertRenderer from './components/DessertRenderer';
 import { audio } from './utils/audio';
+import RewardedAdModal from './components/RewardedAdModal';
 
 const STORAGE_KEY = 'sweet_match_user_progress_v2';
 
@@ -59,6 +61,24 @@ export default function App() {
   const [welcomeQuote, setWelcomeQuote] = useState('');
   const [muted, setMuted] = useState(false);
   const [showHowToPlay, setShowHowToPlay] = useState(false);
+  const [levelPage, setLevelPage] = useState(0);
+  const [isAdOpen, setIsAdOpen] = useState(false);
+
+  const handleAdRewardComplete = () => {
+    updateProgress((prev) => ({
+      ...prev,
+      candies: prev.candies + 100,
+    }));
+    setIsAdOpen(false);
+    audio.playSuccess();
+  };
+
+  // Sync levelPage to the page containing highest level
+  useEffect(() => {
+    if (progress.highestLevel) {
+      setLevelPage(Math.floor((progress.highestLevel - 1) / 30));
+    }
+  }, [progress.highestLevel]);
 
   // Load progress from localStorage
   useEffect(() => {
@@ -237,6 +257,18 @@ export default function App() {
                   <span>ปรับแต่งธีมร้านคาเฟ่ ☕</span>
                 </button>
 
+                {/* Watch Ad for free candies */}
+                <button
+                  onClick={() => {
+                    audio.playTap();
+                    setIsAdOpen(true);
+                  }}
+                  className="w-full py-3.5 px-4 rounded-full bg-gradient-to-r from-purple-500 via-pink-500 to-amber-500 hover:brightness-105 text-white font-extrabold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-98 animate-pulse"
+                >
+                  <Gift className="w-4 h-4 fill-white text-yellow-300 animate-bounce" />
+                  <span>ดูโฆษณารับ 100 อมยิ้มฟรี! 🍬</span>
+                </button>
+
                 {/* How to Play Help button */}
                 <button
                   onClick={() => {
@@ -281,15 +313,24 @@ export default function App() {
               </div>
 
               {/* Levels Grid layout */}
-              <p className="text-xs text-amber-800/60 font-medium text-center mb-5">
-                💡 สะสมแต้มดาว ⭐ ในแต่ละด่านเพื่อปลดล็อกรสชาติขนมหวานสูตรดั้งเดิมลงในสมุดสูตร
-              </p>
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-2 border-b border-amber-900/5 pb-3 mb-4">
+                <p className="text-xs text-amber-800/70 font-medium text-center sm:text-left">
+                  💡 ด่านจะเพิ่มความท้าทายและความเร็วเรื่อย ๆ เล่นได้ยาวนานไม่มีที่สิ้นสุด! ⭐
+                </p>
+                <div className="flex items-center gap-1.5 bg-amber-100/60 px-3 py-1 rounded-full text-[11px] font-bold text-amber-900 font-mono">
+                  <span>หน้า {levelPage + 1} / ด่าน {levelPage * 30 + 1} - {levelPage * 30 + 30}</span>
+                </div>
+              </div>
 
-              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3.5 max-h-[380px] overflow-y-auto pr-1 scrollbar-thin">
-                {Array.from({ length: 70 }).map((_, i) => {
-                  const lvlNum = i + 1;
+              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3 max-h-[340px] overflow-y-auto pr-1 scrollbar-thin">
+                {Array.from({ length: 30 }).map((_, i) => {
+                  const lvlNum = levelPage * 30 + i + 1;
                   const isUnlocked = lvlNum <= progress.highestLevel;
                   const earnedStars = progress.stars[lvlNum] || 0;
+
+                  // Dynamic indicator emojis depending on infinite formula theme cycle
+                  const themeIndex = (lvlNum - 1) % 4;
+                  const themeEmoji = themeIndex === 0 ? '🧁' : themeIndex === 1 ? '🍬' : themeIndex === 2 ? '🥥' : '🎁';
 
                   return (
                     <button
@@ -303,7 +344,7 @@ export default function App() {
                           audio.playFail();
                         }
                       }}
-                      className={`p-3 rounded-2xl border transition-all flex flex-col items-center justify-between min-h-[90px] relative ${
+                      className={`p-2.5 rounded-2xl border transition-all flex flex-col items-center justify-between min-h-[85px] relative ${
                         isUnlocked
                           ? 'bg-amber-50/50 hover:bg-amber-100 border-amber-200/60 cursor-pointer shadow-sm hover:scale-103'
                           : 'bg-gray-100 border-gray-200/40 opacity-50 cursor-not-allowed'
@@ -316,24 +357,61 @@ export default function App() {
                       </span>
 
                       {/* Level Theme Icon / Visual indicator */}
-                      <span className="text-[10px] text-amber-800/60 font-semibold block mt-0.5">
-                        {lvlNum > 60 ? '🎁' : lvlNum > 30 ? '🥥' : lvlNum > 10 ? '🍬' : '🧁'}
+                      <span className="text-xs text-amber-800/60 font-semibold block mt-0.5">
+                        {themeEmoji}
                       </span>
 
                       {/* Stars indicator under Level number */}
-                      <div className="flex gap-0.5 mt-2 justify-center">
+                      <div className="flex gap-0.5 mt-1 justify-center">
                         {[1, 2, 3].map((s) => (
                           <Award
-                            key={s}
-                            className={`w-3.5 h-3.5 ${
-                              s <= earnedStars ? 'text-yellow-500 fill-yellow-400' : 'text-gray-300'
-                            }`}
+                             key={s}
+                             className={`w-3 h-3 ${
+                               s <= earnedStars ? 'text-yellow-500 fill-yellow-400' : 'text-gray-300'
+                             }`}
                           />
                         ))}
                       </div>
                     </button>
                   );
                 })}
+              </div>
+
+              {/* Dynamic Endless Pagination Row */}
+              <div className="flex justify-between items-center mt-6 pt-4 border-t border-amber-900/10">
+                <button
+                  onClick={() => {
+                    audio.playTap();
+                    setLevelPage((p) => Math.max(0, p - 1));
+                  }}
+                  disabled={levelPage === 0}
+                  className={`px-4 py-2 rounded-full border text-xs font-bold transition-all ${
+                    levelPage > 0
+                      ? 'bg-white hover:bg-amber-50 text-amber-900 border-amber-200 cursor-pointer'
+                      : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+                  }`}
+                >
+                  ◀️ หน้าก่อนหน้า
+                </button>
+
+                <span className="text-xs font-bold text-amber-900/60 font-sans">
+                  หน้า {levelPage + 1}
+                </span>
+
+                <button
+                  onClick={() => {
+                    audio.playTap();
+                    setLevelPage((p) => p + 1);
+                  }}
+                  disabled={progress.highestLevel < (levelPage * 30 + 1)}
+                  className={`px-4 py-2 rounded-full border text-xs font-bold transition-all ${
+                    progress.highestLevel >= (levelPage * 30 + 1)
+                      ? 'bg-white hover:bg-amber-50 text-amber-900 border-amber-200 cursor-pointer'
+                      : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+                  }`}
+                >
+                  หน้าถัดไป ▶️
+                </button>
               </div>
             </motion.div>
           )}
@@ -436,6 +514,14 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Rewarded Ad for 100 Candies */}
+      <RewardedAdModal
+        isOpen={isAdOpen}
+        rewardType="candies"
+        onComplete={handleAdRewardComplete}
+        onClose={() => setIsAdOpen(false)}
+      />
     </div>
   );
 }

@@ -38,7 +38,7 @@ export interface LevelConfig {
   levelNumber: number;
   theme: LevelTheme;
   themeName: string;
-  difficulty: 'Easy' | 'Medium' | 'Hard' | 'Wonderland';
+  difficulty: 'Easy' | 'Medium' | 'Hard' | 'Wonderland' | string;
   colors: string[]; // hex codes of colors on plates
   speedMultiplier: number;
   spawnIntervalMs: number;
