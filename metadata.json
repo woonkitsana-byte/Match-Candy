@@ -1,0 +1,6 @@
+{
+  "name": "Sweet Match: Dessert Color Sorter",
+  "description": "เกมจับคู่สีขนมหวานสุดน่ารัก ผ่อนคลายสมอง ค่อย ๆ เล่นเพื่อสะสมสูตรขนมและแต่งร้านคาเฟ่ในฝันของคุณ พร้อมเสียงเอฟเฟกต์ฟิน ๆ และแคปชันใจฟู",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

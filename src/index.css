@@ -1,0 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Sarabun:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Space Grotesk", "Sarabun", "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Custom smooth scrollbar styling for collection lists */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: rgba(251, 191, 36, 0.05);
+  border-radius: 9999px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 26, 0.15);
+  border-radius: 9999px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 26, 0.3);
+}
+
+/* Add an elegant spin slow utility for sparkles */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow {
+  animation: spin-slow 12s linear infinite;
+}
+
